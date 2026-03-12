@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Advanced Animated Flow Map</title>
+  <title>Advanced Animated Flow Map with Border</title>
 
   <link
     rel="stylesheet"
@@ -29,7 +29,7 @@
       top: 15px;
       left: 15px;
       z-index: 1000;
-      width: 320px;
+      width: 330px;
       background: rgba(255, 255, 255, 0.96);
       border-radius: 14px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.18);
@@ -192,21 +192,22 @@
       }
     }
 
-    .moving-dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: #111;
-      border: 2px solid #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    .border-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #222;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 2px 6px;
     }
   </style>
 </head>
 <body>
 
   <div class="panel">
-    <h2>Advanced Animated Flow Map</h2>
-    <p>Leaflet demo with multiple animation styles for displacement, mobility, logistics, or delivery tracking.</p>
+    <h2>Animated Flow Map</h2>
+    <p>Advanced Leaflet map with flows, moving marker, heatmap, time slider, and Sudan border.</p>
 
     <div class="stats">
       <div class="stat-box">
@@ -232,6 +233,7 @@
       <button onclick="pauseAnimation()">Pause</button>
       <button onclick="nextMonth()">Next Month</button>
       <button onclick="resetMap()">Reset</button>
+      <button onclick="toggleBorders()">Toggle Border</button>
     </div>
 
     <div class="slider-box">
@@ -243,7 +245,8 @@
     <div class="legend">
       <div><span style="background:#1565c0;"></span> Origin</div>
       <div><span style="background:#ff5a1f;"></span> Destination</div>
-      <div><span style="background:#10b981;"></span> Moving marker / active route</div>
+      <div><span style="background:#10b981;"></span> Moving marker</div>
+      <div><span style="background:#000;"></span> Sudan border</div>
     </div>
   </div>
 
@@ -254,6 +257,9 @@
   <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
   <script>
+    // =========================
+    // MAP SETUP
+    // =========================
     const map = L.map('map', { zoomControl: true }).setView([16.5, 32.5], 6);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -262,7 +268,93 @@
 
     const months = ["Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026"];
 
-    // Example monthly flow data
+    // =========================
+    // SUDAN BORDER GEOJSON
+    // =========================
+    // Simplified demo polygon for Sudan-like national border.
+    // Replace this with your real Sudan GeoJSON file for better accuracy.
+    const sudanBorderGeoJSON = {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "properties": {
+            "name": "Sudan"
+          },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+              [21.8, 8.7],
+              [24.0, 8.8],
+              [25.8, 9.9],
+              [27.8, 10.1],
+              [30.0, 10.4],
+              [33.0, 10.8],
+              [34.5, 11.9],
+              [35.7, 12.8],
+              [36.8, 14.0],
+              [37.4, 16.0],
+              [38.4, 18.0],
+              [38.6, 20.5],
+              [37.6, 22.0],
+              [36.9, 22.2],
+              [35.1, 22.1],
+              [34.0, 21.9],
+              [32.9, 22.0],
+              [31.8, 22.0],
+              [29.9, 22.0],
+              [27.8, 22.0],
+              [25.0, 22.0],
+              [23.2, 21.9],
+              [22.0, 20.6],
+              [21.9, 18.0],
+              [22.0, 16.0],
+              [22.1, 14.0],
+              [22.0, 12.0],
+              [21.8, 10.0],
+              [21.8, 8.7]
+            ]]
+          }
+        }
+      ]
+    };
+
+    let borderLayer = null;
+
+    function loadBorders() {
+      borderLayer = L.geoJSON(sudanBorderGeoJSON, {
+        style: {
+          color: "#000000",
+          weight: 2,
+          fillColor: "#4a90e2",
+          fillOpacity: 0.04
+        },
+        onEachFeature: function(feature, layer) {
+          const name = feature.properties?.name || "Border";
+          layer.bindTooltip(name, {
+            permanent: false,
+            direction: "center",
+            className: "border-label"
+          });
+        }
+      }).addTo(map);
+    }
+
+    function toggleBorders() {
+      if (!borderLayer) return;
+
+      if (map.hasLayer(borderLayer)) {
+        map.removeLayer(borderLayer);
+      } else {
+        map.addLayer(borderLayer);
+      }
+    }
+
+    loadBorders();
+
+    // =========================
+    // FLOW DATA
+    // =========================
     const monthlyFlows = [
       [
         { from: "Khartoum", fromCoords: [15.5007, 32.5599], to: "Port Sudan", toCoords: [19.6158, 37.2164], volume: 2200 },
@@ -301,7 +393,10 @@
     const monthSlider = document.getElementById("monthSlider");
     const monthLabel = document.getElementById("monthLabel");
 
-    function createPulseIcon(type = "orange") {
+    // =========================
+    // ICONS
+    // =========================
+    function createPulseIcon(type = "") {
       return L.divIcon({
         className: "",
         html: `<div class="pulse-marker ${type}"></div>`,
@@ -310,16 +405,10 @@
       });
     }
 
-    function createMovingIcon() {
-      return L.divIcon({
-        className: "",
-        html: `<div class="moving-dot"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
-      });
-    }
-
-    function interpolatePoints(start, end, count = 60) {
+    // =========================
+    // HELPERS
+    // =========================
+    function interpolatePoints(start, end, count = 80) {
       const points = [];
       for (let i = 0; i <= count; i++) {
         const t = i / count;
@@ -363,6 +452,9 @@
       document.getElementById("destCount").textContent = destinations;
     }
 
+    // =========================
+    // DRAW MONTH
+    // =========================
     function drawMonth(index) {
       clearLayers();
 
@@ -374,11 +466,13 @@
       const heatData = [];
 
       data.forEach((flow, i) => {
-        const weight = Math.max(3, flow.volume / 500);
+        const color =
+          i % 3 === 0 ? "#1565c0" :
+          i % 3 === 1 ? "#ff5a1f" :
+          "#10b981";
 
-        // Line
         const line = L.polyline([flow.fromCoords, flow.toCoords], {
-          color: i % 3 === 0 ? "#1565c0" : (i % 3 === 1 ? "#ff5a1f" : "#10b981"),
+          color: color,
           weight: Math.min(12, Math.max(3, flow.volume / 300)),
           opacity: 0.85,
           className: "flow-line"
@@ -390,7 +484,6 @@
 
         routeLines.push(line);
 
-        // Arrow decorator
         const arrows = L.polylineDecorator(line, {
           patterns: [
             {
@@ -411,19 +504,16 @@
 
         routeArrows.push(arrows);
 
-        // Origin marker
         const originMarker = L.marker(flow.fromCoords, {
           icon: createPulseIcon("blue")
         }).addTo(map).bindPopup(`<b>Origin:</b> ${flow.from}`);
 
-        // Destination marker
         const destMarker = L.marker(flow.toCoords, {
           icon: createPulseIcon("")
         }).addTo(map).bindPopup(`<b>Destination:</b> ${flow.to}`);
 
         pointMarkers.push(originMarker, destMarker);
 
-        // Heatmap points
         heatData.push([flow.fromCoords[0], flow.fromCoords[1], flow.volume / 3000]);
         heatData.push([flow.toCoords[0], flow.toCoords[1], flow.volume / 3000]);
       });
@@ -434,7 +524,6 @@
         maxZoom: 10
       }).addTo(map);
 
-      // Move camera to first route
       if (data.length > 0) {
         const first = data[0];
         const bounds = L.latLngBounds([first.fromCoords, first.toCoords]);
@@ -447,6 +536,9 @@
       }
     }
 
+    // =========================
+    // MOVING MARKER
+    // =========================
     function startMovingMarker(start, end, flow) {
       activeRoutePoints = interpolatePoints(start, end, 80);
       moveIndex = 0;
@@ -468,16 +560,17 @@
 
       moveTimer = setInterval(() => {
         if (!movingMarker) return;
-
         movingMarker.setLatLng(activeRoutePoints[moveIndex]);
         moveIndex++;
-
         if (moveIndex >= activeRoutePoints.length) {
           moveIndex = 0;
         }
       }, 90);
     }
 
+    // =========================
+    // CONTROLS
+    // =========================
     function playAnimation() {
       clearInterval(playTimer);
 
@@ -506,12 +599,14 @@
       map.flyTo([16.5, 32.5], 6, { duration: 2 });
     }
 
-    monthSlider.addEventListener("input", function() {
+    monthSlider.addEventListener("input", function () {
       currentMonthIndex = parseInt(this.value, 10);
       drawMonth(currentMonthIndex);
     });
 
-    // Initial draw
+    // =========================
+    // INITIAL LOAD
+    // =========================
     drawMonth(currentMonthIndex);
   </script>
 </body>
