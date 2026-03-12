@@ -1,201 +1,258 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <meta name="description" content="Flow Map" />
-  <title>Displacement Flow Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animated Flow Map</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+
   <style>
-    body {
+    html, body {
       margin: 0;
       padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
     }
 
     #map {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      right: 0;
-      left: 0;
+      width: 100%;
+      height: 100vh;
     }
 
-    .legend {
-      background: #fff;
-      border-radius: 5px;
-      padding: 8px;
+    .info-box {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      padding: 12px 14px;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      max-width: 280px;
+    }
+
+    .info-box h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .info-box p {
+      margin: 4px 0;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .controls button {
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #0b5ed7;
+      color: white;
+      font-size: 14px;
+    }
+
+    .controls button:hover {
+      opacity: 0.9;
+    }
+
+    /* Pulsing marker */
+    .pulse-icon {
+      width: 20px;
+      height: 20px;
+      background: #ff5722;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 0 rgba(255, 87, 34, 0.6);
+      animation: pulse 1.6s infinite;
+    }
+
+    .pulse-blue {
+      background: #1565c0;
+      box-shadow: 0 0 0 rgba(21, 101, 192, 0.6);
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.7);
+      }
+      70% {
+        transform: scale(1.15);
+        box-shadow: 0 0 0 18px rgba(255, 87, 34, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 87, 34, 0);
+      }
+    }
+
+    /* Animated dashed line */
+    .flow-line {
+      stroke-dasharray: 12 10;
+      animation: dashMove 1.2s linear infinite;
+    }
+
+    @keyframes dashMove {
+      to {
+        stroke-dashoffset: -22;
+      }
     }
   </style>
 </head>
-
 <body>
+
+  <div class="info-box">
+    <h3>Animated Flow Map</h3>
+    <p>This demo shows animated movement between locations using Leaflet.</p>
+    <p><strong>Use:</strong> migration flows, delivery routes, transport, displacement tracking.</p>
+
+    <div class="controls">
+      <button onclick="startTour()">Start Tour</button>
+      <button onclick="resetMap()">Reset</button>
+    </div>
+  </div>
+
   <div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/@tweenjs/tween.js@18.6.4/dist/tween.umd.js"></script>
-  <script src="./src/CanvasFlowmapLayer.js"></script>
-  <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
-
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map').setView([34.5, 66.0], 6.45);
+    // 1. Create map
+    const map = L.map('map', {
+      zoomControl: true
+    }).setView([15.5007, 32.5599], 6); // Sudan center-ish
 
-    // Replace the basemap layer with Mapbox URL and access token
-    L.tileLayer('https://api.mapbox.com/styles/v1/omerosman/clxz0kwyr002001pf455vb6gz/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoib21lcm9zbWFuIiwiYSI6ImUxZDBkODBlNjQxMDE2M2Y3OTQ3MWIwNTJkMjgzZTI3In0.ekCHuxRflTOO0RpQ6rQR7Q', {
-      attribution: 'Map data &copy; <a href="https://www.mapbox.com/">Mapbox</a> contributors'
+    // 2. Base map
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    Papa.parse('./data/data.csv', {
-      download: true,
-      header: true,
-      dynamicTyping: true,
-      skipEmptyLines: true,
-      complete: function(results) {
-        var geoJsonFeatureCollection = {
-          type: 'FeatureCollection',
-          features: results.data.map(function(datum) {
-            return {
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: [datum.s_lon, datum.s_lat]
-              },
-              properties: datum
-            }
-          })
-        };
+    // 3. Example locations
+    const locations = [
+      {
+        name: "Khartoum",
+        coords: [15.5007, 32.5599],
+        colorClass: "pulse-blue"
+      },
+      {
+        name: "Port Sudan",
+        coords: [19.6158, 37.2164],
+        colorClass: ""
+      },
+      {
+        name: "El Fasher",
+        coords: [13.6279, 25.3494],
+        colorClass: ""
+      },
+      {
+        name: "Kassala",
+        coords: [15.4581, 36.4032],
+        colorClass: ""
+      }
+    ];
 
-        var manyToOneFlowmapLayer = L.canvasFlowmapLayer(geoJsonFeatureCollection, {
-          originAndDestinationFieldIds: {
-            originUniqueIdField: 'e_locality_id',
-            originGeometry: {
-              x: 'e_lon',
-              y: 'e_lat'
-            },
-            destinationUniqueIdField: 's_state_id',
-            destinationGeometry: {
-              x: 's_lon',
-              y: 's_lat'
-            }
-          },
-          style: function(geoJsonFeature) {
-            if (geoJsonFeature.properties.isOrigin) {
-              return {
-                radius: 3.4,
-                weight: 0.25,
-                color: 'rgb(17, 142, 170)',
-                fillColor: 'rgb(0, 51, 160)',
-                fillOpacity: 0.7
-              };
-            } else {
-              return {
-                radius: 6,
-                weight: 1,
-                color: 'rgb(195, 255, 62)',
-                fillColor: 'rgba(255, 103, 31)',
-                fillOpacity: 0.8
-              };
-            }
-          },
-          canvasBezierStyle: {
-            type: 'classBreaks',
-            field: 'e_Volume',
-            classBreakInfos: [{
-              classMinValue: 0,
-              classMaxValue: 80000,
-              symbol: {
-                strokeStyle: '#ffb81c',
-                lineWidth: 0.5,
-                lineCap: 'round',
-                shadowColor: '#fee8c8',
-                shadowBlur: 2.0
-              }
-            }, {
-              classMinValue: 80001,
-              classMaxValue: 160000,
-              symbol: {
-                strokeStyle: '#ff671f',
-                lineWidth: 1.5,
-                lineCap: 'round',
-                shadowColor: '#fdbb84',
-                shadowBlur: 2.0
-              }
-            }, {
-              classMinValue: 160001,
-              classMaxValue: 10000000,
-              symbol: {
-                strokeStyle: '#d22630',
-                lineWidth: 3,
-                lineCap: 'round',
-                shadowColor: '#e34a33',
-                shadowBlur: 2.0
-              }
-            }],
-            defaultSymbol: {
-              strokeStyle: '#e7e1ef',
-              lineWidth: 0.5,
-              lineCap: 'round',
-              shadowColor: '#e7e1ef',
-              shadowBlur: 1.5
-            },
-          },
-          pathDisplayMode: 'selection',
-          animationStarted: true,
-          animationEasingFamily: 'Linear',
-          animationEasingType: 'None',
-          animationDuration: 2000,
-          onEachFeature: TooltipName,
+    // 4. Custom pulsing div icon
+    function createPulseIcon(extraClass = "") {
+      return L.divIcon({
+        className: "",
+        html: `<div class="pulse-icon ${extraClass}"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+    }
+
+    // 5. Add markers
+    const markers = [];
+    locations.forEach(loc => {
+      const marker = L.marker(loc.coords, {
+        icon: createPulseIcon(loc.colorClass)
+      }).addTo(map).bindPopup(`<b>${loc.name}</b>`);
+      markers.push(marker);
+    });
+
+    // 6. Define flows between locations
+    const flows = [
+      [locations[0], locations[1]],
+      [locations[0], locations[2]],
+      [locations[1], locations[3]]
+    ];
+
+    const lineLayers = [];
+
+    function drawFlows() {
+      clearFlows();
+
+      flows.forEach((flow, index) => {
+        const from = flow[0].coords;
+        const to = flow[1].coords;
+
+        const polyline = L.polyline([from, to], {
+          color: index % 2 === 0 ? "#ff5722" : "#1565c0",
+          weight: 4,
+          opacity: 0.9,
+          className: "flow-line"
         }).addTo(map);
 
-        // Automatically select and display the flow paths for the specified border point
-        setTimeout(function() {
-          manyToOneFlowmapLayer.selectFeaturesForPathDisplayById('s_state_id', 'AFG5', 'SELECTION_NEW'); // Replace 'AFG5' with the correct s_state_id
-        }, 100);
+        polyline.bindTooltip(`${flow[0].name} → ${flow[1].name}`);
+        lineLayers.push(polyline);
+      });
+    }
 
-        // create tooltip function on hover
-        function TooltipName(feature, layer) {
-          layer.on('mouseover', function(e) {
-            this.openPopup();
-          });
-          layer.on('mouseout', function(e) {
-            this.closePopup();
-          });
-          if (layer.options.radius === 6) {
-            layer.bindTooltip("Destination Border Point : " + feature.properties.s_State);
-          } else {
-            layer.bindTooltip("Origin Province : " + feature.properties.e_locality);
-          }
-        };
+    function clearFlows() {
+      lineLayers.forEach(line => map.removeLayer(line));
+      lineLayers.length = 0;
+    }
 
-        manyToOneFlowmapLayer.on('mouseover', function(e) {
-          if (e.sharedOriginFeatures.length) {
-            manyToOneFlowmapLayer.selectFeaturesForPathDisplay(e.sharedOriginFeatures, 'SELECTION_NEW');
-          }
-          if (e.sharedDestinationFeatures.length) {
-            manyToOneFlowmapLayer.selectFeaturesForPathDisplay(e.sharedDestinationFeatures, 'SELECTION_NEW');
-          }
-        });
-      }
-    });
+    // 7. Tour animation
+    let currentStep = 0;
+    let tourTimer = null;
 
-    // Adding Legend to the map
-    var legend = L.control({
-      position: 'bottomleft'
-    });
-    legend.onAdd = function(map) {
-      var legend = L.DomUtil.create('div', 'legend');
-      legend.innerHTML =
-        '<div style="width:17px;height:17px;background:rgba(255, 103, 31, 0.8);float:left;margin-right:10px;border-radius:30px"></div>' + '<span style="float:left;margin-top:1px; font-weight:bold"> Border Point </span>' + '<br/><br/>' +
-        '<div style="width:17px;height:17px;background:rgba(0, 51, 160, 0.8);float:left;margin-right:10px;border-radius:30px"></div>' + '<span style="float:left;margin-top:1px; font-weight:bold"> Province of Return </span>' + '<br/><br/>' +
-        '<span style="font-size: 14px"> Flow:</span><br/>' +
-        '<div style="width:70px;height:3px;background:#ffb81c;float:left;margin-right:10px;margin-top:10px"></div><span style="float:left; font-weight:bold"> < 80,000</span><br/>' +
-        '<div style="width:70px;height:4px;background:#ff671f;float:left;margin-right:10px;margin-top:10px"></div><span style="float:left; font-weight:bold">80,001 - 160,000</span><br/>' +
-        '<div style="width:70px;height:7px;background:#e34a33;float:left;margin-right:10px;margin-top:10px"></div><span style="float:left; font-weight:bold"> > 160,000</span><br/>';
-      return legend;
-    };
-    legend.addTo(map);
+    function focusLocation(index) {
+      const loc = locations[index];
+      map.flyTo(loc.coords, 8, {
+        duration: 2.5
+      });
+
+      setTimeout(() => {
+        markers[index].openPopup();
+      }, 1200);
+    }
+
+    function startTour() {
+      clearInterval(tourTimer);
+      drawFlows();
+
+      currentStep = 0;
+      focusLocation(currentStep);
+
+      tourTimer = setInterval(() => {
+        currentStep++;
+        if (currentStep >= locations.length) {
+          currentStep = 0;
+        }
+        focusLocation(currentStep);
+      }, 4000);
+    }
+
+    function resetMap() {
+      clearInterval(tourTimer);
+      clearFlows();
+      map.flyTo([15.5007, 32.5599], 6, { duration: 2 });
+      markers.forEach(m => m.closePopup());
+    }
+
+    // 8. Start with lines visible
+    drawFlows();
   </script>
-
 </body>
-
 </html>
