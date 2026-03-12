@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Advanced Animated Flow Map with Border</title>
+  <title>Sudan Cross-Border Animated Flow Map</title>
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
     html, body {
@@ -29,8 +26,8 @@
       top: 15px;
       left: 15px;
       z-index: 1000;
-      width: 330px;
-      background: rgba(255, 255, 255, 0.96);
+      width: 360px;
+      background: rgba(255,255,255,0.96);
       border-radius: 14px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.18);
       padding: 16px;
@@ -158,12 +155,35 @@
 
     .pulse-marker.blue {
       background: #1565c0;
-      box-shadow: 0 0 0 rgba(21,101,192,0.5);
     }
 
     .pulse-marker.green {
       background: #10b981;
-      box-shadow: 0 0 0 rgba(16,185,129,0.5);
+    }
+
+    .border-point-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #111827;
+      border: 2px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .bp-label {
+      background: rgba(255,255,255,0.95);
+      border: 1px solid #d9dce3;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #222;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .flow-line {
+      stroke-dasharray: 10 10;
+      animation: dashMove 1s linear infinite;
     }
 
     @keyframes pulse {
@@ -181,33 +201,18 @@
       }
     }
 
-    .flow-line {
-      stroke-dasharray: 10 10;
-      animation: dashMove 1s linear infinite;
-    }
-
     @keyframes dashMove {
       to {
         stroke-dashoffset: -20;
       }
-    }
-
-    .border-label {
-      font-size: 11px;
-      font-weight: bold;
-      color: #222;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 2px 6px;
     }
   </style>
 </head>
 <body>
 
   <div class="panel">
-    <h2>Animated Flow Map</h2>
-    <p>Advanced Leaflet map with flows, moving marker, heatmap, time slider, and Sudan border.</p>
+    <h2>Cross-Border Flow Map</h2>
+    <p>Animated Leaflet map using your real border points and neighbouring countries.</p>
 
     <div class="stats">
       <div class="stat-box">
@@ -223,8 +228,8 @@
         <div class="stat-label">Origins</div>
       </div>
       <div class="stat-box">
-        <div class="stat-value" id="destCount">0</div>
-        <div class="stat-label">Destinations</div>
+        <div class="stat-value" id="countryCount">0</div>
+        <div class="stat-label">Countries</div>
       </div>
     </div>
 
@@ -233,7 +238,7 @@
       <button onclick="pauseAnimation()">Pause</button>
       <button onclick="nextMonth()">Next Month</button>
       <button onclick="resetMap()">Reset</button>
-      <button onclick="toggleBorders()">Toggle Border</button>
+      <button onclick="toggleBorderPoints()">Toggle Border Points</button>
     </div>
 
     <div class="slider-box">
@@ -243,10 +248,10 @@
     </div>
 
     <div class="legend">
+      <div><span style="background:#111827;"></span> Border Point</div>
       <div><span style="background:#1565c0;"></span> Origin</div>
       <div><span style="background:#ff5a1f;"></span> Destination</div>
-      <div><span style="background:#10b981;"></span> Moving marker</div>
-      <div><span style="background:#000;"></span> Sudan border</div>
+      <div><span style="background:#10b981;"></span> Moving Marker</div>
     </div>
   </div>
 
@@ -258,9 +263,9 @@
 
   <script>
     // =========================
-    // MAP SETUP
+    // MAP
     // =========================
-    const map = L.map('map', { zoomControl: true }).setView([16.5, 32.5], 6);
+    const map = L.map('map', { zoomControl: true }).setView([15.7, 30.8], 6);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
@@ -269,126 +274,66 @@
     const months = ["Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026"];
 
     // =========================
-    // SUDAN BORDER GEOJSON
+    // YOUR REAL BORDER POINTS
+    // Y = latitude, X = longitude
     // =========================
-    // Simplified demo polygon for Sudan-like national border.
-    // Replace this with your real Sudan GeoJSON file for better accuracy.
-    const sudanBorderGeoJSON = {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "Sudan"
-          },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[
-              [21.8, 8.7],
-              [24.0, 8.8],
-              [25.8, 9.9],
-              [27.8, 10.1],
-              [30.0, 10.4],
-              [33.0, 10.8],
-              [34.5, 11.9],
-              [35.7, 12.8],
-              [36.8, 14.0],
-              [37.4, 16.0],
-              [38.4, 18.0],
-              [38.6, 20.5],
-              [37.6, 22.0],
-              [36.9, 22.2],
-              [35.1, 22.1],
-              [34.0, 21.9],
-              [32.9, 22.0],
-              [31.8, 22.0],
-              [29.9, 22.0],
-              [27.8, 22.0],
-              [25.0, 22.0],
-              [23.2, 21.9],
-              [22.0, 20.6],
-              [21.9, 18.0],
-              [22.0, 16.0],
-              [22.1, 14.0],
-              [22.0, 12.0],
-              [21.8, 10.0],
-              [21.8, 8.7]
-            ]]
-          }
-        }
-      ]
-    };
+    const borderPoints = [
+      { name: "Um Dukhun", country: "Chad", lat: 11.139, lng: 22.966 },
+      { name: "Gallabat/Metema", country: "Ethiopia", lat: 12.95798, lng: 36.151888 },
+      { name: "Argeen", country: "Egypt", lat: 21.988934, lng: 31.153322 },
+      { name: "Ashkeet", country: "Egypt", lat: 22.000523, lng: 31.511477 },
+      { name: "Adekonk", country: "Chad", lat: 13.4623111, lng: 22.2296523 },
+      { name: "Tina", country: "Chad", lat: 15.011970, lng: 22.489920 },
+      { name: "Juda", country: "South Sudan", lat: 12.236580, lng: 32.761862 },
+      { name: "Al Laffa", country: "Eretria", lat: 15.15372, lng: 36.4355 }
+    ];
 
-    let borderLayer = null;
-
-    function loadBorders() {
-      borderLayer = L.geoJSON(sudanBorderGeoJSON, {
-        style: {
-          color: "#000000",
-          weight: 2,
-          fillColor: "#4a90e2",
-          fillOpacity: 0.04
-        },
-        onEachFeature: function(feature, layer) {
-          const name = feature.properties?.name || "Border";
-          layer.bindTooltip(name, {
-            permanent: false,
-            direction: "center",
-            className: "border-label"
-          });
-        }
-      }).addTo(map);
-    }
-
-    function toggleBorders() {
-      if (!borderLayer) return;
-
-      if (map.hasLayer(borderLayer)) {
-        map.removeLayer(borderLayer);
-      } else {
-        map.addLayer(borderLayer);
-      }
-    }
-
-    loadBorders();
+    const borderPointLookup = {};
+    borderPoints.forEach(bp => {
+      borderPointLookup[bp.name] = bp;
+    });
 
     // =========================
-    // FLOW DATA
+    // SAMPLE MONTHLY FLOW DATA USING YOUR BORDER POINTS
     // =========================
     const monthlyFlows = [
       [
-        { from: "Khartoum", fromCoords: [15.5007, 32.5599], to: "Port Sudan", toCoords: [19.6158, 37.2164], volume: 2200 },
-        { from: "Khartoum", fromCoords: [15.5007, 32.5599], to: "Kassala", toCoords: [15.4581, 36.4032], volume: 1200 },
-        { from: "El Fasher", fromCoords: [13.6279, 25.3494], to: "Dongola", toCoords: [19.1816, 30.4749], volume: 900 }
+        { from: "Argeen", to: "Dongola", toCoords: [19.1816, 30.4749], volume: 27867 },
+        { from: "Ashkeet", to: "Wadi Halfa", toCoords: [21.8011, 31.3499], volume: 8530 },
+        { from: "Um Dukhun", to: "El Geneina", toCoords: [13.4526, 22.4472], volume: 9731 },
+        { from: "Gallabat/Metema", to: "Gedaref", toCoords: [14.0349, 35.3834], volume: 6200 }
       ],
       [
-        { from: "Khartoum", fromCoords: [15.5007, 32.5599], to: "Port Sudan", toCoords: [19.6158, 37.2164], volume: 2600 },
-        { from: "Nyala", fromCoords: [12.0500, 24.8833], to: "El Obeid", toCoords: [13.1842, 30.2167], volume: 1400 },
-        { from: "Kassala", fromCoords: [15.4581, 36.4032], to: "Gedaref", toCoords: [14.0349, 35.3834], volume: 1100 }
+        { from: "Um Dukhun", to: "El Geneina", toCoords: [13.4526, 22.4472], volume: 10178 },
+        { from: "Argeen", to: "Dongola", toCoords: [19.1816, 30.4749], volume: 29488 },
+        { from: "Ashkeet", to: "Wadi Halfa", toCoords: [21.8011, 31.3499], volume: 1222 },
+        { from: "Juda", to: "Kosti", toCoords: [13.1629, 32.6635], volume: 7100 }
       ],
       [
-        { from: "El Geneina", fromCoords: [13.4526, 22.4472], to: "El Fasher", toCoords: [13.6279, 25.3494], volume: 1700 },
-        { from: "Khartoum", fromCoords: [15.5007, 32.5599], to: "Wad Madani", toCoords: [14.4012, 33.5199], volume: 1350 },
-        { from: "Port Sudan", fromCoords: [19.6158, 37.2164], to: "Atbara", toCoords: [17.7022, 33.9864], volume: 1000 }
+        { from: "Tina", to: "El Fasher", toCoords: [13.6279, 25.3494], volume: 9600 },
+        { from: "Adekonk", to: "El Geneina", toCoords: [13.4526, 22.4472], volume: 7800 },
+        { from: "Al Laffa", to: "Kassala", toCoords: [15.4581, 36.4032], volume: 5400 },
+        { from: "Gallabat/Metema", to: "Gedaref", toCoords: [14.0349, 35.3834], volume: 6800 }
       ],
       [
-        { from: "Dongola", fromCoords: [19.1816, 30.4749], to: "Khartoum", toCoords: [15.5007, 32.5599], volume: 1500 },
-        { from: "Gedaref", fromCoords: [14.0349, 35.3834], to: "Kassala", toCoords: [15.4581, 36.4032], volume: 950 },
-        { from: "El Obeid", fromCoords: [13.1842, 30.2167], to: "Khartoum", toCoords: [15.5007, 32.5599], volume: 1800 }
+        { from: "Argeen", to: "Khartoum", toCoords: [15.5007, 32.5599], volume: 13200 },
+        { from: "Ashkeet", to: "Atbara", toCoords: [17.7022, 33.9864], volume: 4100 },
+        { from: "Juda", to: "Rabak", toCoords: [13.1809, 32.7391], volume: 5900 },
+        { from: "Al Laffa", to: "Kassala", toCoords: [15.4581, 36.4032], volume: 6200 }
       ]
     ];
 
     let currentMonthIndex = 0;
     let playTimer = null;
+    let moveTimer = null;
 
     let pointMarkers = [];
     let routeLines = [];
     let routeArrows = [];
     let heatLayer = null;
     let movingMarker = null;
-    let activeRoutePoints = [];
-    let moveIndex = 0;
-    let moveTimer = null;
+
+    let borderPointLayerGroup = L.layerGroup().addTo(map);
 
     const monthSlider = document.getElementById("monthSlider");
     const monthLabel = document.getElementById("monthLabel");
@@ -405,6 +350,62 @@
       });
     }
 
+    function createBorderPointIcon() {
+      return L.divIcon({
+        className: "",
+        html: `<div class="border-point-icon"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      });
+    }
+
+    // =========================
+    // BORDER POINTS
+    // =========================
+    function drawBorderPoints() {
+      borderPointLayerGroup.clearLayers();
+
+      borderPoints.forEach(bp => {
+        const marker = L.marker([bp.lat, bp.lng], {
+          icon: createBorderPointIcon()
+        });
+
+        marker.bindPopup(`
+          <b>Cross Border Name:</b> ${bp.name}<br>
+          <b>Neighbouring Country:</b> ${bp.country}<br>
+          <b>Y:</b> ${bp.lat}<br>
+          <b>X:</b> ${bp.lng}
+        `);
+
+        marker.bindTooltip(`${bp.name} (${bp.country})`, {
+          permanent: false,
+          direction: "top"
+        });
+
+        borderPointLayerGroup.addLayer(marker);
+
+        const label = L.marker([bp.lat, bp.lng], {
+          interactive: false,
+          icon: L.divIcon({
+            className: "",
+            html: `<div class="bp-label">${bp.name}</div>`,
+            iconSize: [90, 20],
+            iconAnchor: [-8, 10]
+          })
+        });
+
+        borderPointLayerGroup.addLayer(label);
+      });
+    }
+
+    function toggleBorderPoints() {
+      if (map.hasLayer(borderPointLayerGroup)) {
+        map.removeLayer(borderPointLayerGroup);
+      } else {
+        map.addLayer(borderPointLayerGroup);
+      }
+    }
+
     // =========================
     // HELPERS
     // =========================
@@ -419,7 +420,7 @@
       return points;
     }
 
-    function clearLayers() {
+    function clearFlowLayers() {
       pointMarkers.forEach(m => map.removeLayer(m));
       routeLines.forEach(l => map.removeLayer(l));
       routeArrows.forEach(a => map.removeLayer(a));
@@ -444,19 +445,21 @@
     function updateStats(data) {
       const totalFlow = data.reduce((sum, d) => sum + d.volume, 0);
       const origins = new Set(data.map(d => d.from)).size;
-      const destinations = new Set(data.map(d => d.to)).size;
+      const countries = new Set(
+        data.map(d => borderPointLookup[d.from]?.country).filter(Boolean)
+      ).size;
 
       document.getElementById("totalFlow").textContent = totalFlow.toLocaleString();
       document.getElementById("routeCount").textContent = data.length;
       document.getElementById("originCount").textContent = origins;
-      document.getElementById("destCount").textContent = destinations;
+      document.getElementById("countryCount").textContent = countries;
     }
 
     // =========================
     // DRAW MONTH
     // =========================
     function drawMonth(index) {
-      clearLayers();
+      clearFlowLayers();
 
       const data = monthlyFlows[index];
       monthLabel.textContent = months[index];
@@ -466,21 +469,30 @@
       const heatData = [];
 
       data.forEach((flow, i) => {
-        const color =
-          i % 3 === 0 ? "#1565c0" :
-          i % 3 === 1 ? "#ff5a1f" :
-          "#10b981";
+        const bp = borderPointLookup[flow.from];
+        if (!bp) return;
 
-        const line = L.polyline([flow.fromCoords, flow.toCoords], {
+        const fromCoords = [bp.lat, bp.lng];
+        const toCoords = flow.toCoords;
+
+        const color =
+          i % 4 === 0 ? "#1565c0" :
+          i % 4 === 1 ? "#ff5a1f" :
+          i % 4 === 2 ? "#10b981" :
+          "#7c3aed";
+
+        const line = L.polyline([fromCoords, toCoords], {
           color: color,
-          weight: Math.min(12, Math.max(3, flow.volume / 300)),
-          opacity: 0.85,
+          weight: Math.min(14, Math.max(3, flow.volume / 2500)),
+          opacity: 0.9,
           className: "flow-line"
         }).addTo(map);
 
-        line.bindTooltip(
-          `<b>${flow.from} → ${flow.to}</b><br>Volume: ${flow.volume.toLocaleString()}`
-        );
+        line.bindTooltip(`
+          <b>${flow.from} → ${flow.to}</b><br>
+          Country: ${bp.country}<br>
+          Volume: ${flow.volume.toLocaleString()}
+        `);
 
         routeLines.push(line);
 
@@ -504,18 +516,24 @@
 
         routeArrows.push(arrows);
 
-        const originMarker = L.marker(flow.fromCoords, {
+        const originMarker = L.marker(fromCoords, {
           icon: createPulseIcon("blue")
-        }).addTo(map).bindPopup(`<b>Origin:</b> ${flow.from}`);
+        }).addTo(map).bindPopup(`
+          <b>Origin Border Point:</b> ${flow.from}<br>
+          <b>Neighbouring Country:</b> ${bp.country}
+        `);
 
-        const destMarker = L.marker(flow.toCoords, {
+        const destMarker = L.marker(toCoords, {
           icon: createPulseIcon("")
-        }).addTo(map).bindPopup(`<b>Destination:</b> ${flow.to}`);
+        }).addTo(map).bindPopup(`
+          <b>Destination:</b> ${flow.to}<br>
+          <b>Volume:</b> ${flow.volume.toLocaleString()}
+        `);
 
         pointMarkers.push(originMarker, destMarker);
 
-        heatData.push([flow.fromCoords[0], flow.fromCoords[1], flow.volume / 3000]);
-        heatData.push([flow.toCoords[0], flow.toCoords[1], flow.volume / 3000]);
+        heatData.push([fromCoords[0], fromCoords[1], flow.volume / 30000]);
+        heatData.push([toCoords[0], toCoords[1], flow.volume / 30000]);
       });
 
       heatLayer = L.heatLayer(heatData, {
@@ -525,44 +543,48 @@
       }).addTo(map);
 
       if (data.length > 0) {
-        const first = data[0];
-        const bounds = L.latLngBounds([first.fromCoords, first.toCoords]);
-        map.flyToBounds(bounds, {
-          padding: [80, 80],
+        const firstFlow = data[0];
+        const firstBP = borderPointLookup[firstFlow.from];
+        const start = [firstBP.lat, firstBP.lng];
+        const end = firstFlow.toCoords;
+
+        map.flyToBounds(L.latLngBounds([start, end]), {
+          padding: [60, 60],
           duration: 2
         });
 
-        startMovingMarker(first.fromCoords, first.toCoords, first);
+        startMovingMarker(start, end, firstFlow, firstBP.country);
       }
     }
 
     // =========================
     // MOVING MARKER
     // =========================
-    function startMovingMarker(start, end, flow) {
-      activeRoutePoints = interpolatePoints(start, end, 80);
-      moveIndex = 0;
+    function startMovingMarker(start, end, flow, country) {
+      const routePoints = interpolatePoints(start, end, 80);
+      let moveIndex = 0;
 
       if (movingMarker) {
         map.removeLayer(movingMarker);
       }
 
-      movingMarker = L.marker(activeRoutePoints[0], {
+      movingMarker = L.marker(routePoints[0], {
         icon: createPulseIcon("green")
       }).addTo(map);
 
-      movingMarker.bindTooltip(
-        `<b>Moving:</b> ${flow.from} → ${flow.to}<br>Volume: ${flow.volume.toLocaleString()}`,
-        { permanent: false, direction: "top" }
-      );
+      movingMarker.bindTooltip(`
+        <b>Moving:</b> ${flow.from} → ${flow.to}<br>
+        <b>Country:</b> ${country}<br>
+        <b>Volume:</b> ${flow.volume.toLocaleString()}
+      `);
 
       clearInterval(moveTimer);
 
       moveTimer = setInterval(() => {
         if (!movingMarker) return;
-        movingMarker.setLatLng(activeRoutePoints[moveIndex]);
+        movingMarker.setLatLng(routePoints[moveIndex]);
         moveIndex++;
-        if (moveIndex >= activeRoutePoints.length) {
+        if (moveIndex >= routePoints.length) {
           moveIndex = 0;
         }
       }, 90);
@@ -573,7 +595,6 @@
     // =========================
     function playAnimation() {
       clearInterval(playTimer);
-
       playTimer = setInterval(() => {
         currentMonthIndex++;
         if (currentMonthIndex >= months.length) currentMonthIndex = 0;
@@ -596,7 +617,7 @@
       pauseAnimation();
       currentMonthIndex = 0;
       drawMonth(currentMonthIndex);
-      map.flyTo([16.5, 32.5], 6, { duration: 2 });
+      map.flyTo([15.7, 30.8], 6, { duration: 2 });
     }
 
     monthSlider.addEventListener("input", function () {
@@ -607,6 +628,7 @@
     // =========================
     // INITIAL LOAD
     // =========================
+    drawBorderPoints();
     drawMonth(currentMonthIndex);
   </script>
 </body>
