@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DTM Sudan Cross-Border Monitoring Dashboard v3</title>
+  <title>DTM Sudan Cross-Border Monitoring Dashboard v4</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
@@ -490,16 +490,23 @@
     }
 
     .pulse-marker.origin{ background:var(--origin); }
-    .pulse-marker.dest{ background:var(--dest); }
     .pulse-marker.move{ background:var(--move); }
 
     .border-point-icon{
-      width:16px;
-      height:16px;
       border-radius:50%;
       background:#0f172a;
       border:2px solid #fff;
       box-shadow:0 2px 8px rgba(0,0,0,.35);
+      opacity:.96;
+    }
+
+    .destination-icon{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:var(--dest);
+      border:2px solid #fff;
+      box-shadow:0 2px 6px rgba(0,0,0,.2);
     }
 
     .bp-label{
@@ -556,6 +563,56 @@
       font-size:10px;
       color:var(--muted);
       margin-top:2px;
+    }
+
+    .map-overlay-title{
+      position:absolute;
+      right:18px;
+      z-index:900;
+      background:rgba(11,78,162,0.92);
+      color:#fff;
+      padding:10px 14px;
+      border-radius:12px;
+      font-size:13px;
+      font-weight:700;
+      box-shadow:0 8px 22px rgba(0,0,0,.18);
+    }
+
+    #mapTitle{
+      top:18px;
+    }
+
+    #mapContext{
+      top:70px;
+      background:rgba(255,255,255,.95);
+      color:#083772;
+      border:1px solid #d7e4f6;
+    }
+
+    .map-disclaimer{
+      position:absolute;
+      bottom:14px;
+      right:14px;
+      z-index:900;
+      background:rgba(255,255,255,.92);
+      color:#475569;
+      font-size:11px;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid #d9e2ef;
+      max-width:290px;
+      line-height:1.4;
+      box-shadow:0 4px 14px rgba(0,0,0,.08);
+    }
+
+    .country-label{
+      font-size:14px;
+      font-weight:800;
+      color:rgba(15,23,42,0.72);
+      letter-spacing:0.08em;
+      text-shadow:0 1px 2px rgba(255,255,255,0.95);
+      white-space:nowrap;
+      pointer-events:none;
     }
 
     .modal{
@@ -635,6 +692,16 @@
         left:10px;
         top:10px;
         max-height:62vh;
+      }
+
+      .map-overlay-title{
+        right:10px;
+      }
+
+      .map-disclaimer{
+        right:10px;
+        left:10px;
+        max-width:none;
       }
     }
   </style>
@@ -815,6 +882,13 @@
     </div>
   </div>
 
+  <div id="mapTitle" class="map-overlay-title">Recorded inflows into Sudan</div>
+  <div id="mapContext" class="map-overlay-title">Jan 2024 • Monthly inflow</div>
+
+  <div class="map-disclaimer">
+    Map for illustration purposes only. Names and boundaries do not imply official endorsement or acceptance.
+  </div>
+
   <div id="methodologyModal" class="modal">
     <div class="modal-card">
       <div class="modal-head">
@@ -824,27 +898,25 @@
       <div class="modal-body">
         <h4>Source</h4>
         <p>
-          DTM Sudan Cross-Border Monitoring Report (2), publication date 15 February 2026,
-          reporting period January 2024 to December 2025.
+          DTM Sudan Cross-Border Monitoring Report, reporting period January 2024 to December 2025.
         </p>
 
         <h4>Coverage</h4>
         <p>
-          This dashboard uses the six monitored cross-border points in the report:
+          This dashboard uses six monitored cross-border points:
           Argeen, Ashkeet, Um Dukhun, Adekonk-Ag Geneina, At Tina, and Gallabat/Metema.
         </p>
 
         <h4>Method</h4>
         <p>
           Flow Monitoring Count captures total crossings into Sudan, place of origin, intended destination,
-          and mode of travel. Flow Monitoring Survey provides individual-level information, and findings were weighted
-          using Flow Monitoring Count volumes.
+          and mode of travel. Flow Monitoring Survey provides individual-level information.
         </p>
 
         <h4>Important caveat</h4>
         <p>
-          The report does not provide a full monthly destination matrix for every route in the way this map visually suggests.
-          For that reason, destination points here are displayed as visualization anchors, not exact destination allocations.
+          This map uses indicative destination anchors for visualization. It should not be interpreted
+          as a full monthly destination matrix.
         </p>
       </div>
     </div>
@@ -853,6 +925,7 @@
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@elfalem/leaflet-curve/dist/leaflet.curve.js"></script>
   <script src="https://unpkg.com/leaflet-polylinedecorator"></script>
   <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
@@ -860,7 +933,10 @@
     // =========================================================
     // MAP + BASEMAPS
     // =========================================================
-    const map = L.map('map', { zoomControl: true }).setView([15.7, 30.8], 6);
+    const map = L.map('map', {
+      zoomControl: true,
+      worldCopyJump: false
+    }).setView([15.7, 30.8], 6);
 
     const lightLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
@@ -873,6 +949,9 @@
     let currentBasemap = 'light';
     lightLayer.addTo(map);
 
+    const sudanBounds = L.latLngBounds([8.5, 21.5], [23.5, 38.5]);
+    map.setMaxBounds(sudanBounds.pad(0.2));
+
     // =========================================================
     // REPORT MONTHS
     // =========================================================
@@ -883,13 +962,11 @@
       "Jul 2025","Aug 2025","Sep 2025","Oct 2025","Nov 2025","Dec 2025"
     ];
 
-    // Figure 7
     const overallMonthly = [
       496, 1110, 9527, 847, 2302, 3153, 520, 563, 1015, 1524, 5649, 15712,
       23370, 29526, 20216, 55024, 35974, 26965, 38868, 57674, 56097, 51663, 42840, 49026
     ];
 
-    // Figure 8 - Egypt split
     const egyptArgeen = [
       496, 628, 4413, 712, 1555, 1672, 353, 411, 502, 796, 606, 807,
       561, 454, 425, 19950, 21492, 11329, 16875, 22604, 18908, 14407, 27867, 8503
@@ -900,7 +977,6 @@
       22809, 29072, 19791, 35074, 14482, 15636, 21993, 26116, 24857, 24052, 12855, 16500
     ];
 
-    // Figure 16 - Chad Aug-Dec 2025
     const chadAdekonk = {
       "Aug 2025": 5771,
       "Sep 2025": 6926,
@@ -925,7 +1001,6 @@
       "Dec 2025": 0
     };
 
-    // Ethiopia Aug-Dec 2025, total 1,217
     const ethiopiaGallabat = {
       "Aug 2025": 348,
       "Sep 2025": 252,
@@ -989,6 +1064,13 @@
       }
     ];
 
+    const mapLabels = [
+      { name: "EGYPT", lat: 22.8, lng: 29.2 },
+      { name: "CHAD", lat: 14.0, lng: 21.8 },
+      { name: "ETHIOPIA", lat: 13.6, lng: 37.2 },
+      { name: "SUDAN", lat: 15.8, lng: 29.8 }
+    ];
+
     const countryTotalsAll = {
       Egypt: 469057,
       Chad: 59387,
@@ -1017,7 +1099,7 @@
           { value: "51%", label: "Male" },
           { value: "27%", label: "Children <18" }
         ],
-        note: "Across all inflows, 96% were Sudanese nationals and 4% were non-Sudanese. About 68% were ages 18–59, while only 5% were 60 years or older."
+        note: "Across all inflows, the majority were adults aged 18–59. This panel is a compact summary area for report-level characteristics."
       },
       transport: {
         cards: [
@@ -1025,7 +1107,7 @@
           { value: "7%", label: "On foot / cart" },
           { value: "4%", label: "Private vehicle" }
         ],
-        note: "Less than 1% used trucks overall. The report notes strong route differences: Egypt was almost entirely public transport, while Chad had much more movement on foot, cart, and private vehicles."
+        note: "Route patterns differ across borders. Egypt routes are mainly public transport, while Chad routes show more walking, cart, and mixed movement patterns."
       },
       docs: {
         cards: [
@@ -1033,7 +1115,7 @@
           { value: "9%", label: "No document" },
           { value: "3%", label: "Refugee / asylum docs" }
         ],
-        note: "The most commonly reported document types across all inflows were passports and national IDs. Documentation patterns vary a lot by CBP, especially on the Chad border."
+        note: "Documentation patterns vary strongly by border point. Use this as a quick reference panel, not a full disaggregation table."
       },
       intent: {
         cards: [
@@ -1041,7 +1123,7 @@
           { value: "25%", label: "Move within Sudan" },
           { value: "8%", label: "Move outside Sudan" }
         ],
-        note: "The report shows stronger return-to-origin intentions among arrivals from Egypt and Ethiopia, while movements from Chad were more mixed and often temporary or onward-looking."
+        note: "Intentions differ across routes. This section gives a dashboard summary rather than route-level microdata."
       }
     };
 
@@ -1135,7 +1217,9 @@
     let routeArrows = [];
     let movingMarker = null;
     let heatLayer = null;
+
     const borderPointLayerGroup = L.layerGroup().addTo(map);
+    const labelLayer = L.layerGroup().addTo(map);
 
     const monthSlider = document.getElementById('monthSlider');
     const monthLabel = document.getElementById('monthLabel');
@@ -1173,12 +1257,32 @@
       });
     }
 
-    function createBorderPointIcon() {
+    function getCBPTotal(cbpName) {
+      let total = 0;
+      monthlyFlows.forEach(monthArr => {
+        monthArr.forEach(f => {
+          if (f.from === cbpName) total += f.volume;
+        });
+      });
+      return total;
+    }
+
+    function createScaledCBPIcon(total) {
+      const size = Math.max(14, Math.min(34, 14 + total / 20000));
       return L.divIcon({
         className: "",
-        html: `<div class="border-point-icon"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
+        html: `<div class="border-point-icon" style="width:${size}px;height:${size}px;"></div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
+      });
+    }
+
+    function createDestinationIcon() {
+      return L.divIcon({
+        className: "",
+        html: `<div class="destination-icon"></div>`,
+        iconSize:[12,12],
+        iconAnchor:[6,6]
       });
     }
 
@@ -1329,6 +1433,22 @@
       });
     }
 
+    function drawCountryLabels() {
+      labelLayer.clearLayers();
+      mapLabels.forEach(item => {
+        const marker = L.marker([item.lat, item.lng], {
+          interactive: false,
+          icon: L.divIcon({
+            className: "",
+            html: `<div class="country-label">${item.name}</div>`,
+            iconSize: [100, 20],
+            iconAnchor: [20, 10]
+          })
+        });
+        labelLayer.addLayer(marker);
+      });
+    }
+
     function drawBorderPoints() {
       borderPointLayerGroup.clearLayers();
 
@@ -1337,13 +1457,17 @@
       borderPoints
         .filter(bp => country === 'ALL' || bp.country === country)
         .forEach(bp => {
-          const marker = L.marker([bp.lat, bp.lng], { icon: createBorderPointIcon() });
+          const total = getCBPTotal(bp.name);
+          const marker = L.marker([bp.lat, bp.lng], {
+            icon: createScaledCBPIcon(total)
+          });
 
           marker.bindPopup(`
             <div class="popup-title">${bp.name}</div>
             <div><b>Country:</b> ${bp.country}</div>
             <div><b>Sudan state:</b> ${bp.state}</div>
             <div><b>Destination anchor:</b> ${bp.destination.name}</div>
+            <div><b>Total volume:</b> ${fmt(total)}</div>
             <div><b>Lat:</b> ${bp.lat}</div>
             <div><b>Lng:</b> ${bp.lng}</div>
           `);
@@ -1506,6 +1630,7 @@
     function buildPopupHTML(flow, totalVisible) {
       const bp = borderPointLookup[flow.from];
       const share = totalVisible ? ((flow.volume / totalVisible) * 100).toFixed(1) : '0.0';
+      const totalCBP = getCBPTotal(flow.from);
 
       return `
         <div class="popup-title">${flow.from} → ${flow.to}</div>
@@ -1527,11 +1652,32 @@
             <div class="l">Anchor</div>
           </div>
           <div class="popup-stat">
-            <div class="v">${flow.country}</div>
-            <div class="l">Origin country</div>
+            <div class="v">${fmt(totalCBP)}</div>
+            <div class="l">CBP total</div>
           </div>
         </div>
       `;
+    }
+
+    function createCurvedLine(start, end, options = {}) {
+      const lat1 = start[0], lng1 = start[1];
+      const lat2 = end[0], lng2 = end[1];
+
+      const midLat = (lat1 + lat2) / 2;
+      const midLng = (lng1 + lng2) / 2;
+
+      const dx = lng2 - lng1;
+      const dy = lat2 - lat1;
+
+      const curveStrength = 0.18;
+      const controlLat = midLat + dx * curveStrength;
+      const controlLng = midLng - dy * curveStrength;
+
+      return L.curve([
+        'M', start,
+        'Q', [controlLat, controlLng],
+        end
+      ], options);
     }
 
     function startMovingMarker(flows) {
@@ -1573,9 +1719,13 @@
 
       const flows = getVisibleFlows(index);
       const totalVisible = flows.reduce((sum, d) => sum + d.volume, 0);
+      const sortedFlows = [...flows].sort((a, b) => b.volume - a.volume);
+      const topRouteKey = sortedFlows.length ? `${sortedFlows[0].from}|${sortedFlows[0].to}` : '';
 
       monthSlider.value = index;
       monthLabel.textContent = `${months[index]} • ${viewMode === 'monthly' ? 'Monthly' : 'Cumulative'}`;
+      document.getElementById('mapContext').textContent =
+        `${months[index]} • ${viewMode === 'monthly' ? 'Monthly inflow' : 'Cumulative inflow'}`;
 
       updateStats(flows);
       updateCardsAndBars(index);
@@ -1583,6 +1733,28 @@
       drawTimeline(index);
 
       const heatData = [];
+      const activeCBPs = {};
+
+      flows.forEach(flow => {
+        activeCBPs[flow.from] = (activeCBPs[flow.from] || 0) + flow.volume;
+      });
+
+      Object.entries(activeCBPs).forEach(([cbpName, vol]) => {
+        const bp = borderPointLookup[cbpName];
+        if (!bp) return;
+
+        const radius = Math.max(12000, Math.min(50000, vol * 1.2));
+
+        const halo = L.circle([bp.lat, bp.lng], {
+          radius,
+          color: countryColors[bp.country],
+          weight: 1,
+          fillColor: countryColors[bp.country],
+          fillOpacity: 0.08
+        }).addTo(map);
+
+        pointMarkers.push(halo);
+      });
 
       flows.forEach(flow => {
         const bp = borderPointLookup[flow.from];
@@ -1592,11 +1764,12 @@
         const toCoords = flow.toCoords;
         const color = countryColors[flow.country] || '#ef4444';
         const popupHTML = buildPopupHTML(flow, totalVisible);
+        const isTop = `${flow.from}|${flow.to}` === topRouteKey;
 
-        const line = L.polyline([fromCoords, toCoords], {
+        const line = createCurvedLine(fromCoords, toCoords, {
           color,
-          weight: getLineWeight(flow.volume),
-          opacity: 0.86,
+          weight: isTop ? getLineWeight(flow.volume) + 2 : getLineWeight(flow.volume),
+          opacity: isTop ? 1 : 0.78,
           className: 'flow-line'
         }).addTo(map);
 
@@ -1611,16 +1784,15 @@
 
         const arrows = L.polylineDecorator(line, {
           patterns: [{
-            offset: 25,
-            repeat: 50,
+            offset: 30,
+            repeat: 70,
             symbol: L.Symbol.arrowHead({
               pixelSize: 10,
               polygon: true,
               pathOptions: {
-                stroke: true,
-                color,
-                fillOpacity: 0.9,
-                weight: 2
+                stroke: false,
+                fillOpacity: 0.95,
+                fillColor: color
               }
             })
           }]
@@ -1633,7 +1805,7 @@
         }).addTo(map).bindPopup(popupHTML);
 
         const destMarker = L.marker(toCoords, {
-          icon: createPulseIcon('dest')
+          icon: createDestinationIcon()
         }).addTo(map).bindPopup(popupHTML);
 
         pointMarkers.push(originMarker, destMarker);
@@ -1726,6 +1898,7 @@
       updateModeButtons();
       updateInsightPanel();
       drawBorderPoints();
+      drawCountryLabels();
       drawMonth(currentMonthIndex, false);
       map.flyTo([15.7, 30.8], 6, { duration: 1.4 });
       updateCountryCardActive();
@@ -1807,6 +1980,7 @@
     updateCountryCardActive();
     updateInsightPanel();
     drawBorderPoints();
+    drawCountryLabels();
     drawMonth(currentMonthIndex, false);
   </script>
 </body>
