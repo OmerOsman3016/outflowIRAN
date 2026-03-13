@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DTM Sudan Cross-Border Monitoring Dashboard</title>
+  <title>DTM Sudan Cross-Border Monitoring Dashboard v3</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
@@ -24,7 +24,6 @@
       --dest:#0b4ea2;
       --move:#111827;
       --shadow:0 14px 36px rgba(8, 31, 67, 0.16);
-      --radius:16px;
     }
 
     *{ box-sizing:border-box; }
@@ -49,7 +48,7 @@
       top:14px;
       left:14px;
       z-index:1000;
-      width:430px;
+      width:440px;
       max-height:calc(100vh - 28px);
       overflow:auto;
       background:rgba(255,255,255,0.97);
@@ -70,7 +69,7 @@
       font-size:11px;
       text-transform:uppercase;
       letter-spacing:.08em;
-      opacity:.9;
+      opacity:.92;
       margin-bottom:6px;
     }
 
@@ -254,6 +253,7 @@
       background:#fff;
       text-align:center;
       cursor:pointer;
+      transition:.2s ease;
     }
 
     .country-card.active{
@@ -305,6 +305,73 @@
       border-radius:999px;
     }
 
+    .tabs{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:8px;
+      margin-bottom:12px;
+    }
+
+    .tab-btn{
+      background:#fff;
+      border:1px solid var(--line);
+      color:var(--iom-dark);
+      font-size:12px;
+      padding:9px 8px;
+      border-radius:10px;
+    }
+
+    .tab-btn.active{
+      background:var(--iom-dark);
+      color:#fff;
+      border-color:transparent;
+    }
+
+    .insight-panel{
+      background:#f8fbff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:12px;
+      margin-bottom:12px;
+    }
+
+    .insight-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+      margin-bottom:10px;
+    }
+
+    .insight-card{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:10px 8px;
+      text-align:center;
+    }
+
+    .insight-card .v{
+      font-size:18px;
+      font-weight:700;
+      color:var(--iom-dark);
+    }
+
+    .insight-card .l{
+      font-size:11px;
+      color:var(--muted);
+      margin-top:3px;
+    }
+
+    .insight-note{
+      font-size:12px;
+      color:#4f5f79;
+      line-height:1.5;
+      background:#fff;
+      border:1px dashed var(--line);
+      border-radius:10px;
+      padding:10px;
+    }
+
     .timeline-wrap{
       background:#f8fbff;
       border:1px solid var(--line);
@@ -329,7 +396,7 @@
 
     #timelineChart{
       width:100%;
-      height:140px;
+      height:150px;
       display:block;
       background:#fff;
       border:1px solid var(--line);
@@ -452,6 +519,45 @@
       animation:dashMove 1.4s linear infinite;
     }
 
+    .leaflet-popup-content{
+      margin:12px 14px;
+      min-width:240px;
+    }
+
+    .popup-title{
+      font-size:14px;
+      font-weight:700;
+      color:var(--iom-dark);
+      margin-bottom:6px;
+    }
+
+    .popup-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+      margin-top:8px;
+    }
+
+    .popup-stat{
+      background:#f8fbff;
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:8px;
+      text-align:center;
+    }
+
+    .popup-stat .v{
+      font-size:14px;
+      font-weight:700;
+      color:var(--iom);
+    }
+
+    .popup-stat .l{
+      font-size:10px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
     .modal{
       position:absolute;
       inset:0;
@@ -528,7 +634,7 @@
         width:calc(100% - 20px);
         left:10px;
         top:10px;
-        max-height:58vh;
+        max-height:62vh;
       }
     }
   </style>
@@ -607,7 +713,7 @@
         <button class="secondary" onclick="toggleBorderPoints()">Toggle CBPs</button>
         <button class="secondary" onclick="toggleHeat()">Toggle Heat</button>
         <button class="secondary" onclick="toggleBasemap()">Basemap</button>
-        <button class="secondary" onclick="fitVisibleRoutes()">Fit visible routes</button>
+        <button class="secondary" onclick="fitVisibleRoutes()">Fit routes</button>
         <button class="secondary" onclick="resetMap()">Reset</button>
         <button class="wide secondary" onclick="openMethodology()">About data & methodology</button>
       </div>
@@ -655,13 +761,26 @@
         </div>
       </div>
 
-      <div class="section-title">Monthly timeline</div>
+      <div class="section-title">Insights</div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="demo">Demographics</button>
+        <button class="tab-btn" data-tab="transport">Transport</button>
+        <button class="tab-btn" data-tab="docs">Documentation</button>
+        <button class="tab-btn" data-tab="intent">Intentions</button>
+      </div>
+
+      <div class="insight-panel">
+        <div class="insight-grid" id="insightGrid"></div>
+        <div class="insight-note" id="insightNote"></div>
+      </div>
+
+      <div class="section-title">Stacked timeline</div>
       <div class="timeline-wrap">
         <div class="timeline-head">
           <span>Selected month highlighted</span>
           <span id="timelineModeLabel">Monthly inflow</span>
         </div>
-        <canvas id="timelineChart" width="390" height="140"></canvas>
+        <canvas id="timelineChart" width="396" height="150"></canvas>
       </div>
 
       <div class="section-title">Visible CBP summary</div>
@@ -691,7 +810,7 @@
 
       <div class="note">
         Figures are preliminary and may be revised. Data validity dates vary by border point.
-        Destinations in this dashboard are used as illustrative destination anchors for visualization.
+        Destination nodes in this dashboard are used as illustrative destination anchors.
       </div>
     </div>
   </div>
@@ -711,25 +830,27 @@
 
         <h4>Coverage</h4>
         <p>
-          This dashboard is based on six monitored cross-border points:
+          This dashboard uses the six monitored cross-border points in the report:
           Argeen, Ashkeet, Um Dukhun, Adekonk-Ag Geneina, At Tina, and Gallabat/Metema.
         </p>
 
-        <h4>How the data were collected</h4>
+        <h4>Method</h4>
         <p>
-          Flow Monitoring Count records the number of individuals crossing into Sudan, their place of origin,
-          intended destination, and mode of travel. Flow Monitoring Survey collects individual-level information,
-          and final findings were weighted using Flow Monitoring Count volumes.
+          Flow Monitoring Count captures total crossings into Sudan, place of origin, intended destination,
+          and mode of travel. Flow Monitoring Survey provides individual-level information, and findings were weighted
+          using Flow Monitoring Count volumes.
         </p>
 
-        <h4>Important note</h4>
+        <h4>Important caveat</h4>
         <p>
-          Data validity dates vary by cross-border point. Figures are preliminary and may be revised.
-          Destination points shown on this map are visualization anchors, not a full monthly destination matrix.
+          The report does not provide a full monthly destination matrix for every route in the way this map visually suggests.
+          For that reason, destination points here are displayed as visualization anchors, not exact destination allocations.
         </p>
       </div>
     </div>
   </div>
+
+  <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-polylinedecorator"></script>
@@ -762,24 +883,24 @@
       "Jul 2025","Aug 2025","Sep 2025","Oct 2025","Nov 2025","Dec 2025"
     ];
 
-    // Overall monthly timeline from Figure 7
+    // Figure 7
     const overallMonthly = [
       496, 1110, 9527, 847, 2302, 3153, 520, 563, 1015, 1524, 5649, 15712,
       23370, 29526, 20216, 55024, 35974, 26965, 38868, 57674, 56097, 51663, 42840, 49026
     ];
 
-    // Egypt monthly split from Figure 8
+    // Figure 8 - Egypt split
     const egyptArgeen = [
       496, 628, 4413, 712, 1555, 1672, 353, 411, 502, 796, 606, 807,
-      561, 454, 425, 5043, 14905, 22809, 29072, 19791, 35074, 14482, 16500, 27867
+      561, 454, 425, 19950, 21492, 11329, 16875, 22604, 18908, 14407, 27867, 8503
     ];
 
     const egyptAshkeet = [
       0, 482, 5114, 135, 747, 1481, 167, 152, 513, 728, 5043, 14905,
-      22809, 29072, 19791, 19950, 21492, 11329, 16875, 22604, 18908, 14407, 12855, 8503
+      22809, 29072, 19791, 35074, 14482, 15636, 21993, 26116, 24857, 24052, 12855, 16500
     ];
 
-    // Chad Aug-Dec 2025
+    // Figure 16 - Chad Aug-Dec 2025
     const chadAdekonk = {
       "Aug 2025": 5771,
       "Sep 2025": 6926,
@@ -804,7 +925,7 @@
       "Dec 2025": 0
     };
 
-    // Ethiopia Aug-Dec 2025
+    // Ethiopia Aug-Dec 2025, total 1,217
     const ethiopiaGallabat = {
       "Aug 2025": 348,
       "Sep 2025": 252,
@@ -885,6 +1006,44 @@
       borderPointLookup[bp.name] = bp;
       if (bp.shortName) borderPointLookup[bp.shortName] = bp;
     });
+
+    // =========================================================
+    // INSIGHTS
+    // =========================================================
+    const insightContent = {
+      demo: {
+        cards: [
+          { value: "49%", label: "Female" },
+          { value: "51%", label: "Male" },
+          { value: "27%", label: "Children <18" }
+        ],
+        note: "Across all inflows, 96% were Sudanese nationals and 4% were non-Sudanese. About 68% were ages 18–59, while only 5% were 60 years or older."
+      },
+      transport: {
+        cards: [
+          { value: "88%", label: "Public transport" },
+          { value: "7%", label: "On foot / cart" },
+          { value: "4%", label: "Private vehicle" }
+        ],
+        note: "Less than 1% used trucks overall. The report notes strong route differences: Egypt was almost entirely public transport, while Chad had much more movement on foot, cart, and private vehicles."
+      },
+      docs: {
+        cards: [
+          { value: "94%", label: "Some ID" },
+          { value: "9%", label: "No document" },
+          { value: "3%", label: "Refugee / asylum docs" }
+        ],
+        note: "The most commonly reported document types across all inflows were passports and national IDs. Documentation patterns vary a lot by CBP, especially on the Chad border."
+      },
+      intent: {
+        cards: [
+          { value: "67%", label: "Return to origin" },
+          { value: "25%", label: "Move within Sudan" },
+          { value: "8%", label: "Move outside Sudan" }
+        ],
+        note: "The report shows stronger return-to-origin intentions among arrivals from Egypt and Ethiopia, while movements from Chad were more mixed and often temporary or onward-looking."
+      }
+    };
 
     // =========================================================
     // BUILD MONTHLY FLOW DATA
@@ -968,7 +1127,8 @@
     let playTimer = null;
     let moveTimer = null;
     let heatVisible = true;
-    let viewMode = 'monthly'; // monthly | cumulative
+    let viewMode = 'monthly';
+    let activeInsightTab = 'demo';
 
     let pointMarkers = [];
     let routeLines = [];
@@ -1072,9 +1232,7 @@
       for (let i = 0; i <= index; i++) {
         getMonthFlows(i).forEach(flow => {
           const key = `${flow.country}|${flow.from}|${flow.to}`;
-          if (!merged[key]) {
-            merged[key] = { ...flow, volume: 0 };
-          }
+          if (!merged[key]) merged[key] = { ...flow, volume: 0 };
           merged[key].volume += flow.volume;
         });
       }
@@ -1152,6 +1310,25 @@
       }
     }
 
+    function updateInsightPanel() {
+      const content = insightContent[activeInsightTab];
+      const insightGrid = document.getElementById('insightGrid');
+      const insightNote = document.getElementById('insightNote');
+
+      insightGrid.innerHTML = content.cards.map(card => `
+        <div class="insight-card">
+          <div class="v">${card.value}</div>
+          <div class="l">${card.label}</div>
+        </div>
+      `).join('');
+
+      insightNote.textContent = content.note;
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === activeInsightTab);
+      });
+    }
+
     function drawBorderPoints() {
       borderPointLayerGroup.clearLayers();
 
@@ -1163,12 +1340,12 @@
           const marker = L.marker([bp.lat, bp.lng], { icon: createBorderPointIcon() });
 
           marker.bindPopup(`
-            <b>Cross-Border Point:</b> ${bp.name}<br>
-            <b>Neighbouring Country:</b> ${bp.country}<br>
-            <b>Sudan State:</b> ${bp.state}<br>
-            <b>Destination anchor:</b> ${bp.destination.name}<br>
-            <b>Latitude:</b> ${bp.lat}<br>
-            <b>Longitude:</b> ${bp.lng}
+            <div class="popup-title">${bp.name}</div>
+            <div><b>Country:</b> ${bp.country}</div>
+            <div><b>Sudan state:</b> ${bp.state}</div>
+            <div><b>Destination anchor:</b> ${bp.destination.name}</div>
+            <div><b>Lat:</b> ${bp.lat}</div>
+            <div><b>Lng:</b> ${bp.lng}</div>
           `);
 
           borderPointLayerGroup.addLayer(marker);
@@ -1233,6 +1410,35 @@
         : `<tr><td colspan="4" style="text-align:center;color:#64748b;">No data for current selection</td></tr>`;
     }
 
+    function buildStackSeries(mode) {
+      const egypt = [];
+      const chad = [];
+      const ethiopia = [];
+
+      let runE = 0, runC = 0, runT = 0;
+
+      months.forEach((month, i) => {
+        const monthFlows = getMonthFlows(i);
+        const byCountry = { Egypt: 0, Chad: 0, Ethiopia: 0 };
+        monthFlows.forEach(f => byCountry[f.country] += f.volume);
+
+        if (mode === 'monthly') {
+          egypt.push(byCountry.Egypt);
+          chad.push(byCountry.Chad);
+          ethiopia.push(byCountry.Ethiopia);
+        } else {
+          runE += byCountry.Egypt;
+          runC += byCountry.Chad;
+          runT += byCountry.Ethiopia;
+          egypt.push(runE);
+          chad.push(runC);
+          ethiopia.push(runT);
+        }
+      });
+
+      return { egypt, chad, ethiopia };
+    }
+
     function drawTimeline(index) {
       const canvas = document.getElementById('timelineChart');
       const ctx = canvas.getContext('2d');
@@ -1241,22 +1447,15 @@
 
       ctx.clearRect(0, 0, width, height);
 
-      const pad = { top: 12, right: 10, bottom: 22, left: 10 };
+      const pad = { top: 12, right: 10, bottom: 24, left: 10 };
       const chartW = width - pad.left - pad.right;
       const chartH = height - pad.top - pad.bottom;
 
-      let series;
-      if (viewMode === 'monthly') {
-        series = overallMonthly.slice();
-      } else {
-        let running = 0;
-        series = overallMonthly.map(v => (running += v));
-      }
+      const series = buildStackSeries(viewMode);
+      const totals = months.map((_, i) => series.egypt[i] + series.chad[i] + series.ethiopia[i]);
+      const maxVal = Math.max(...totals, 1);
+      const barW = chartW / months.length;
 
-      const maxVal = Math.max(...series, 1);
-      const barW = chartW / series.length;
-
-      // baseline
       ctx.strokeStyle = '#dbe5f1';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -1264,32 +1463,75 @@
       ctx.lineTo(pad.left + chartW, pad.top + chartH);
       ctx.stroke();
 
-      series.forEach((value, i) => {
+      for (let i = 0; i < months.length; i++) {
         const x = pad.left + i * barW + 1;
-        const h = (value / maxVal) * (chartH - 4);
-        const y = pad.top + chartH - h;
+        const usableW = Math.max(4, barW - 2);
 
-        ctx.fillStyle = i === index ? '#0b4ea2' : '#b9c8dd';
-        ctx.fillRect(x, y, Math.max(4, barW - 2), h);
+        const hE = (series.egypt[i] / maxVal) * (chartH - 4);
+        const hC = (series.chad[i] / maxVal) * (chartH - 4);
+        const hT = (series.ethiopia[i] / maxVal) * (chartH - 4);
+
+        let y = pad.top + chartH;
+
+        y -= hE;
+        ctx.fillStyle = countryColors.Egypt;
+        ctx.fillRect(x, y, usableW, hE);
+
+        y -= hC;
+        ctx.fillStyle = countryColors.Chad;
+        ctx.fillRect(x, y, usableW, hC);
+
+        y -= hT;
+        ctx.fillStyle = countryColors.Ethiopia;
+        ctx.fillRect(x, y, usableW, hT);
 
         if (i === index) {
-          ctx.strokeStyle = '#083772';
+          ctx.strokeStyle = '#111827';
           ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, Math.max(4, barW - 2), h);
+          ctx.strokeRect(x, pad.top + chartH - (hE + hC + hT), usableW, hE + hC + hT);
         }
-      });
+      }
 
-      // simple labels every 3 months
       ctx.fillStyle = '#6b7a92';
       ctx.font = '10px Arial';
       ctx.textAlign = 'center';
       months.forEach((m, i) => {
         if (i % 3 === 0) {
           const x = pad.left + i * barW + barW / 2;
-          const label = m.split(' ')[0];
-          ctx.fillText(label, x, height - 8);
+          ctx.fillText(m.split(' ')[0], x, height - 8);
         }
       });
+    }
+
+    function buildPopupHTML(flow, totalVisible) {
+      const bp = borderPointLookup[flow.from];
+      const share = totalVisible ? ((flow.volume / totalVisible) * 100).toFixed(1) : '0.0';
+
+      return `
+        <div class="popup-title">${flow.from} → ${flow.to}</div>
+        <div><b>Country:</b> ${flow.country}</div>
+        <div><b>Sudan state:</b> ${bp.state}</div>
+        <div><b>Period:</b> ${months[currentMonthIndex]}</div>
+        <div><b>Mode:</b> ${viewMode === 'monthly' ? 'Monthly' : 'Cumulative'}</div>
+        <div class="popup-grid">
+          <div class="popup-stat">
+            <div class="v">${fmt(flow.volume)}</div>
+            <div class="l">Value</div>
+          </div>
+          <div class="popup-stat">
+            <div class="v">${share}%</div>
+            <div class="l">Visible share</div>
+          </div>
+          <div class="popup-stat">
+            <div class="v">${bp.destination.name}</div>
+            <div class="l">Anchor</div>
+          </div>
+          <div class="popup-stat">
+            <div class="v">${flow.country}</div>
+            <div class="l">Origin country</div>
+          </div>
+        </div>
+      `;
     }
 
     function startMovingMarker(flows) {
@@ -1330,6 +1572,8 @@
       clearFlowLayers();
 
       const flows = getVisibleFlows(index);
+      const totalVisible = flows.reduce((sum, d) => sum + d.volume, 0);
+
       monthSlider.value = index;
       monthLabel.textContent = `${months[index]} • ${viewMode === 'monthly' ? 'Monthly' : 'Cumulative'}`;
 
@@ -1347,8 +1591,7 @@
         const fromCoords = [bp.lat, bp.lng];
         const toCoords = flow.toCoords;
         const color = countryColors[flow.country] || '#ef4444';
-        const currentMonthTotal = flows.reduce((sum, d) => sum + d.volume, 0);
-        const share = currentMonthTotal ? ((flow.volume / currentMonthTotal) * 100).toFixed(1) : '0.0';
+        const popupHTML = buildPopupHTML(flow, totalVisible);
 
         const line = L.polyline([fromCoords, toCoords], {
           color,
@@ -1359,11 +1602,10 @@
 
         line.bindTooltip(`
           <b>${flow.from} → ${flow.to}</b><br>
-          <b>Country:</b> ${flow.country}<br>
-          <b>${viewMode === 'monthly' ? 'Monthly value' : 'Cumulative value'}:</b> ${fmt(flow.volume)}<br>
-          <b>Share of visible total:</b> ${share}%<br>
-          <b>Selected period:</b> ${months[currentMonthIndex]}
+          <b>${viewMode === 'monthly' ? 'Monthly' : 'Cumulative'}:</b> ${fmt(flow.volume)}<br>
+          <b>Country:</b> ${flow.country}
         `);
+        line.bindPopup(popupHTML);
 
         routeLines.push(line);
 
@@ -1388,22 +1630,11 @@
 
         const originMarker = L.marker(fromCoords, {
           icon: createPulseIcon('origin')
-        }).addTo(map).bindPopup(`
-          <b>Cross-Border Point:</b> ${flow.from}<br>
-          <b>Country:</b> ${flow.country}<br>
-          <b>Sudan state:</b> ${bp.state}<br>
-          <b>${viewMode === 'monthly' ? 'Monthly value' : 'Cumulative value'}:</b> ${fmt(flow.volume)}<br>
-          <b>Selected period:</b> ${months[currentMonthIndex]}
-        `);
+        }).addTo(map).bindPopup(popupHTML);
 
         const destMarker = L.marker(toCoords, {
           icon: createPulseIcon('dest')
-        }).addTo(map).bindPopup(`
-          <b>Indicative destination anchor:</b> ${flow.to}<br>
-          <b>Linked CBP:</b> ${flow.from}<br>
-          <b>${viewMode === 'monthly' ? 'Monthly value' : 'Cumulative value'}:</b> ${fmt(flow.volume)}<br>
-          <b>Selected period:</b> ${months[currentMonthIndex]}
-        `);
+        }).addTo(map).bindPopup(popupHTML);
 
         pointMarkers.push(originMarker, destMarker);
 
@@ -1491,10 +1722,13 @@
       populateCBPFilter();
       cbpFilter.value = 'ALL';
       viewMode = 'monthly';
+      activeInsightTab = 'demo';
       updateModeButtons();
+      updateInsightPanel();
       drawBorderPoints();
       drawMonth(currentMonthIndex, false);
       map.flyTo([15.7, 30.8], 6, { duration: 1.4 });
+      updateCountryCardActive();
     }
 
     function openMethodology() {
@@ -1503,6 +1737,13 @@
 
     function closeMethodology() {
       document.getElementById('methodologyModal').classList.remove('show');
+    }
+
+    function updateCountryCardActive() {
+      document.querySelectorAll('.country-card').forEach(card => {
+        const cardCountry = card.getAttribute('data-country-card');
+        card.classList.toggle('active', selectedCountry() === cardCountry);
+      });
     }
 
     // =========================================================
@@ -1536,13 +1777,6 @@
       drawMonth(currentMonthIndex, false);
     });
 
-    function updateCountryCardActive() {
-      document.querySelectorAll('.country-card').forEach(card => {
-        const cardCountry = card.getAttribute('data-country-card');
-        card.classList.toggle('active', selectedCountry() === cardCountry);
-      });
-    }
-
     document.querySelectorAll('.country-card').forEach(card => {
       card.addEventListener('click', () => {
         const clicked = card.getAttribute('data-country-card');
@@ -1558,12 +1792,20 @@
       });
     });
 
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeInsightTab = btn.dataset.tab;
+        updateInsightPanel();
+      });
+    });
+
     // =========================================================
     // INIT
     // =========================================================
     populateCBPFilter();
     updateModeButtons();
     updateCountryCardActive();
+    updateInsightPanel();
     drawBorderPoints();
     drawMonth(currentMonthIndex, false);
   </script>
